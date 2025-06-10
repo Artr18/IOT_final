@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>MonitoreO2 | Dashboard</title>
+  <!-- AdminLTE CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js -->
+</head>
+<body class="hold-transition sidebar-mini">
+  <div class="wrapper">
+
+    <!-- Navbar -->
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a>
+        </li>
+        <li class="nav-item d-none d-sm-inline-block">
+          <a href="#" class="nav-link">Dashboard</a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside class="main-sidebar sidebar-dark-primary elevation-4">
+      <a href="#" class="brand-link">
+        <i class="fas fa-heartbeat brand-image img-circle elevation-3" style="opacity: .8"></i>
+        <span class="brand-text font-weight-light">MonitoreO2</span>
+      </a>
+      <div class="sidebar">
+        <nav class="mt-2">
+          <ul class="nav nav-pills nav-sidebar flex-column">
+            <li class="nav-item">
+              <a href="/dashboard" class="nav-link active">
+                <i class="nav-icon fas fa-tachometer-alt"></i>
+                <p>Dashboard</p>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </aside>
+
+    <!-- Content Wrapper -->
+    <div class="content-wrapper">
+      <div class="content-header">
+        <div class="container-fluid">
+          <h1 class="m-0 text-dark">Datos Recientes</h1>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <section class="content">
+        <div class="container-fluid">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Últimos Registros</h3>
+            </div>
+            <div class="card-body table-responsive p-0" style="max-height: 400px;">
+              <table class="table table-hover text-nowrap table-bordered table-striped">
+                <thead class="thead-dark">
+                  <tr>
+                    <th>Nombre</th>
+                    <th>BPM</th>
+                    <th>SpO₂</th>
+                    <th>HR</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla-valores">
+                  <% data.forEach(item => { %>
+                    <tr>
+                      <td><%= item.nombre %></td>
+                      <td><%= item.BPM %></td>
+                      <td><%= item.SpO2 %></td>
+                      <td><%= item.HR %></td>
+                      <td><%= new Date(item.fecha).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Gráfica en tiempo real -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3 class="card-title">Gráfica en Tiempo Real</h3>
+            </div>
+            <div class="card-body">
+              <canvas id="graficaValores" width="400" height="150"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <strong>MonitoreO2 © 2025</strong>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+
+  <!-- Script de actualización -->
+  <script>
+    let grafica;
+
+    async function obtenerDatos() {
+      try {
+        const res = await fetch('/grafica');
+        return await res.json();
+      } catch (err) {
+        console.error('Error al obtener datos:', err);
+        return [];
+      }
+    }
+
+    function actualizarTabla(datos) {
+      const tbody = document.getElementById('tabla-valores');
+      tbody.innerHTML = '';
+
+      datos.forEach(item => {
+        const fecha = item.fecha
+          ? (item.fecha._seconds 
+              ? new Date(item.fecha._seconds * 1000).toLocaleString()
+              : new Date(item.fecha).toLocaleString())
+          : 'Sin fecha';
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${item.nombre}</td>
+            <td>${item.BPM}</td>
+            <td>${item.SpO2}</td>
+            <td>${item.HR}</td>
+            <td>${fecha}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function actualizarGrafica(datos) {
+      const labels = datos.map(d => 
+        d.fecha && d.fecha._seconds
+          ? new Date(d.fecha._seconds * 1000).toLocaleTimeString()
+          : d.fecha
+          ? new Date(d.fecha).toLocaleTimeString()
+          : ''
+      );
+
+      const bpm = datos.map(d => d.BPM);
+      const spo2 = datos.map(d => d.SpO2);
+      const hr = datos.map(d => d.HR);
+
+      const config = {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'BPM', data: bpm, borderColor: 'red', fill: false },
+            { label: 'SpO2', data: spo2, borderColor: 'blue', fill: false },
+            { label: 'HR', data: hr, borderColor: 'green', fill: false }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      };
+
+      if (grafica) {
+        grafica.data.labels = config.data.labels;
+        config.data.datasets.forEach((d, i) => grafica.data.datasets[i].data = d.data);
+        grafica.update();
+      } else {
+        const ctx = document.getElementById('graficaValores').getContext('2d');
+        grafica = new Chart(ctx, config);
+      }
+    }
+
+    async function actualizar() {
+      const datos = await obtenerDatos();
+      actualizarTabla(datos);
+      actualizarGrafica(datos);
+    }
+
+    actualizar(); // Primera carga
+    setInterval(actualizar, 5000); // Actualizar cada 5 segundos
+  </script>
+</body>
+</html>

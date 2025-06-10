@@ -1,3 +1,4 @@
+// fire.js
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
@@ -6,7 +7,7 @@ const firebaseConfig = {
   authDomain: "anafrec-d650e.firebaseapp.com",
   databaseURL: "https://anafrec-d650e-default-rtdb.firebaseio.com",
   projectId: "anafrec-d650e",
-  storageBucket: "anafrec-d650e.firebasestorage.app",
+  storageBucket: "anafrec-d650e.appspot.com",
   messagingSenderId: "256926816392",
   appId: "1:256926816392:web:88e6f4de36df97615ea73d",
   measurementId: "G-M441NLCTFC"
