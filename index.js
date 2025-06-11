@@ -3,11 +3,7 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { 
-  collection, getDocs, addDoc, 
-  query, orderBy, limit 
-} from "firebase/firestore";
-import { db } from "./fire.js";
+import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,103 +19,65 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Redireccionar "/" a "/dashboard"
+// URL base del Realtime Database
+const RTDB_URL = 'https://anafrec-d650e-default-rtdb.firebaseio.com/valor.json';
+
+// Redirigir a dashboard
 app.get('/', (req, res) => {
   res.redirect('/dashboard');
 });
 
-// Dashboard - últimos 10 registros
+// Mostrar los últimos 10 registros
 app.get('/dashboard', async (req, res) => {
   try {
-    const q = query(
-      collection(db, 'valor'),
-      orderBy('fecha', 'desc'),
-      limit(10)
-    );
+    const response = await axios.get(RTDB_URL);
+    const dataObject = response.data;
 
-    const snapshot = await getDocs(q);
-    const data = [];
-
-    snapshot.forEach(doc => {
-      const item = doc.data();
-
-      // Convertir timestamp Firestore a ISO string si existe
-      if (item.fecha && typeof item.fecha.toDate === 'function') {
-        item.fecha = item.fecha.toDate().toISOString();
-      } else if (item.fecha && item.fecha._seconds) {
-        item.fecha = new Date(item.fecha._seconds * 1000).toISOString();
-      }
-
-      data.push(item);
-    });
+    const data = Object.values(dataObject || {}).reverse().slice(0, 10);
 
     res.render('dashboard', { data });
   } catch (error) {
-    console.error('Error al obtener datos:', error);
+    console.error('Error al obtener datos de RTDB:', error.message);
     res.status(500).send('Error al obtener datos');
   }
 });
 
-// Ruta para obtener datos para la gráfica (últimos 10 registros)
+// Obtener datos para gráfica
 app.get('/grafica', async (req, res) => {
   try {
-    const q = query(
-      collection(db, 'valor'),
-      orderBy('fecha', 'desc'),
-      limit(10)
-    );
-    const snapshot = await getDocs(q);
-    const wholeData = [];
+    const response = await axios.get(RTDB_URL);
+    const dataObject = response.data;
 
-    snapshot.forEach(doc => {
-      const item = doc.data();
-      if (item.fecha && typeof item.fecha.toDate === 'function') {
-        item.fecha = item.fecha.toDate();
-      }
-      wholeData.push(item);
-    });
-
-    res.send(wholeData);
+    const data = Object.values(dataObject || {}).reverse().slice(0, 10);
+    res.send(data);
   } catch (error) {
-    console.error('Error!', error);
-    res.status(500).send('Error al obtener gráfica');
+    console.error('Error al obtener gráfica:', error.message);
+    res.status(500).send('Error al obtener datos');
   }
 });
 
-// Insertar nuevo registro desde ESP32 u otro cliente
+// Insertar nuevo registro (desde ESP32)
 app.post('/insertar', async (req, res) => {
   try {
     const { BPM, SpO2, HR, nombre, fecha } = req.body;
-
-    // Si se recibe fecha en texto, parsearla a Date. 
-    // Asumimos que la fecha viene en ISO (ejemplo: "2025-06-09T22:21:31Z")
     const fechaObj = fecha ? new Date(fecha) : new Date();
 
-    // Para asegurarnos que se guarde en UTC, Date ya almacena en UTC internamente.
-    // No debemos hacer conversiones locales aquí.
-
-    const docRef = await addDoc(collection(db, 'valor'), {
+    const nuevoRegistro = {
       BPM: Number(BPM),
       SpO2: Number(SpO2),
       HR: Number(HR),
       nombre,
-      fecha: fechaObj
-    });
+      fecha: fechaObj.toISOString()
+    };
 
-    res.send({
-      id: docRef.id,
-      BPM: Number(BPM),
-      SpO2: Number(SpO2),
-      HR: Number(HR),
-      nombre,
-      fecha: fechaObj.toISOString() // UTC en formato ISO
-    });
+    await axios.post(RTDB_URL, nuevoRegistro);
+
+    res.send(nuevoRegistro);
   } catch (error) {
-    console.error('Error al insertar:', error);
+    console.error('Error al insertar en RTDB:', error.message);
     res.status(500).send('Error al insertar datos');
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
