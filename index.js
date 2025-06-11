@@ -45,6 +45,7 @@ app.get('/dashboard', async (req, res) => {
 // Obtener datos para gráfica
 app.get('/grafica', async (req, res) => {
   try {
+    console.log('Solicitud a /grafica');
     const response = await axios.get(RTDB_URL);
     const dataObject = response.data;
 
@@ -55,6 +56,7 @@ app.get('/grafica', async (req, res) => {
     res.status(500).send('Error al obtener datos');
   }
 });
+
 
 // Insertar nuevo registro (desde ESP32)
 app.post('/insertar', async (req, res) => {
